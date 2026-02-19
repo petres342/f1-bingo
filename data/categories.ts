@@ -1,4 +1,4 @@
-import { Category } from '@/types';
+import { Category, Driver } from '@/types';
 import { allDrivers } from './drivers';
 
 // ------------------------------------------------------------------------
@@ -210,10 +210,12 @@ export const generateDailyCategories = (): Category[] => {
 
     if (!param) continue;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const t = template as any;
     selected.push({
       id: `${template.baseId}-${param}`,
-      text: template.text(param as any),
-      matches: (d) => template.matches(d, param as any)
+      text: t.text(param),
+      matches: (d: Driver) => t.matches(d, param)
     });
   }
 
@@ -222,10 +224,12 @@ export const generateDailyCategories = (): Category[] => {
     const natTemplate = categoryTemplates.find(t => t.baseId === "nationality");
     if (!natTemplate) break;
     const nat = natTemplate.getValue!() as string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nt = natTemplate as any;
     selected.push({
       id: `nat-${nat}`,
-      text: natTemplate.text(nat),
-      matches: (d) => natTemplate.matches(d, nat)
+      text: nt.text(nat),
+      matches: (d: Driver) => nt.matches(d, nat)
     });
   }
 
