@@ -1,6 +1,12 @@
 export type Driver = {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  abbreviation?: string;
+  permanentNumber?: string | null;
+  gender?: string;
   country: string;
   flag?: string;
   teams: string[];
@@ -10,22 +16,33 @@ export type Driver = {
   wetWins?: boolean;
   notable?: string[];
 
-  // Fields used in categories.ts
-  nationalityCountryId?: string;
-  countryOfBirthCountryId?: string;
+  // Date & place fields
   dateOfBirth?: string;
+  dateOfDeath?: string | null;
+  placeOfBirth?: string;
+  countryOfBirthCountryId?: string;
+  nationalityCountryId?: string;
+  secondNationalityCountryId?: string | null;
+
+  // Career stats
+  bestChampionshipPosition?: number | null;
+  bestStartingGridPosition?: number | null;
+  bestRaceResult?: number | null;
+  bestSprintRaceResult?: number | null;
   totalChampionshipWins?: number;
-  totalRaceWins?: number;
-  totalPolePositions?: number;
-  totalPodiums?: number;
+  totalRaceEntries?: number;
   totalRaceStarts?: number;
-  totalPoints?: number;
-  totalFastestLaps?: number;
-  totalGrandSlams?: number;
-  totalDriverOfTheDay?: number;
-  totalSprintRaceWins?: number;
+  totalRaceWins?: number;
   totalRaceLaps?: number;
-  bestChampionshipPosition?: number;
+  totalPodiums?: number;
+  totalPoints?: number;
+  totalChampionshipPoints?: number;
+  totalPolePositions?: number;
+  totalFastestLaps?: number;
+  totalSprintRaceStarts?: number;
+  totalSprintRaceWins?: number;
+  totalDriverOfTheDay?: number;
+  totalGrandSlams?: number;
 };
 
 export type Category = {
