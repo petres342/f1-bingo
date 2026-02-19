@@ -60,7 +60,7 @@ interface GS {
 
 function buildGame(): GS {
   const categories = generateDailyCategories();
-  const drivers    = [...allDrivers].sort(() => Math.random() - 0.5).slice(0, 60);
+  const drivers    = [...(allDrivers as Driver[])].sort(() => Math.random() - 0.5).slice(0, 60);
   return {
     categories, drivers, idx: 0,
     correct: new Set(), wrong: new Set(), assigned: new Map(),
