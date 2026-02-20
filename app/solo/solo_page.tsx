@@ -1,5 +1,5 @@
 import BingoGame from '@/components/BingoGame';
 
-export default function Home() {
+export default function SoloPage() {
   return <BingoGame />;
 }

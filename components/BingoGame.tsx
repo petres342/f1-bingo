@@ -60,8 +60,34 @@ interface GS {
 }
 
 function buildGame(): GS {
+  return buildGameWithSeed();
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEEDED RANDOM  — ensures everyone in a room gets identical categories/drivers
+// ─────────────────────────────────────────────────────────────────────────────
+function seededRandom(seed: string): () => number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
+  }
+  return function() {
+    h ^= h >>> 13;
+    h = Math.imul(h, 1540483477);
+    h ^= h >>> 15;
+    return ((h >>> 0) / 0xFFFFFFFF);
+  };
+}
+
+function buildGameWithSeed(seed?: string): GS {
+  // Temporarily replace Math.random with seeded version so generateDailyCategories
+  // produces identical output for everyone in the same room.
+  const origRandom = Math.random;
+  if (seed) Math.random = seededRandom(seed);
   const categories = generateDailyCategories();
   const drivers    = [...(allDrivers as Driver[])].sort(() => Math.random() - 0.5).slice(0, 60);
+  if (seed) Math.random = origRandom;
   return {
     categories, drivers, idx: 0,
     correct: new Set(), wrong: new Set(), assigned: new Map(),
@@ -319,7 +345,16 @@ function catAccentColor(text: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // RESULTS SCREEN  — all original sections preserved, visuals polished
 // ─────────────────────────────────────────────────────────────────────────────
-function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
+function Results({ gs, onRestart, onDone }: { gs: GS; onRestart: () => void; onDone?: (score: number, totalTime: number, bestStreak: number) => void }) {
+  const { correct, best, totalTime } = gs;
+  // Fire onDone once when component mounts (game just finished)
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (!firedRef.current && onDone) {
+      firedRef.current = true;
+      onDone(correct.size, totalTime, best);
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   const { categories, correct, wrong, assigned, best, totalTime } = gs;
   const score = correct.size;
   const total = categories.length;
@@ -576,10 +611,10 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-export default function BingoGame() {
+export default function BingoGame({ roomSeed, onDone }: { roomSeed?: string; onDone?: (score: number, totalTime: number, bestStreak: number) => void } = {}) {
   const [gs, setGs] = useState<GS | null>(null);
 
-  useEffect(() => { setGs(buildGame()); }, []);
+  useEffect(() => { setGs(buildGameWithSeed(roomSeed)); }, [roomSeed]);
 
   // ── TIMER ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -648,11 +683,11 @@ export default function BingoGame() {
     });
   }, []);
 
-  const handleRestart = useCallback(() => setGs(buildGame()), []);
+  const handleRestart = useCallback(() => setGs(buildGameWithSeed(roomSeed)), [roomSeed]);
 
   // ── RENDER ────────────────────────────────────────────────────────────────
   if (!gs) return <Skeleton />;
-  if (gs.done) return <Results gs={gs} onRestart={handleRestart} />;
+  if (gs.done) return <Results gs={gs} onRestart={handleRestart} onDone={onDone} />;
 
   const driver    = gs.drivers[gs.idx];
   const answered  = gs.correct.size + gs.wrong.size;
