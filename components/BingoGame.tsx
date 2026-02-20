@@ -11,36 +11,36 @@ import {
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOKENS
+// TOKENS  (upgraded palette — deep navy instead of pure black)
 // ─────────────────────────────────────────────────────────────────────────────
 const C = {
-  black:  '#080808',
-  deep:   '#0d0d0d',
-  steel:  '#131313',
-  iron:   '#191919',
-  plate:  '#202020',
-  bolt:   '#2a2a2a',
-  dim:    '#4a4540',
-  chrome: '#a89880',
-  silver: '#d4c9b8',
-  white:  '#f5f0e8',
-  red:    '#e10600',
-  redLo:  '#420100',
-  green:  '#00d98b',
-  amber:  '#f5b800',
+  black:  '#06060f',
+  deep:   '#0b0b18',
+  steel:  '#10101e',
+  iron:   '#171728',
+  plate:  '#1e1e32',
+  bolt:   '#2a2a44',
+  dim:    '#52527a',
+  chrome: '#8888b8',
+  silver: '#c4c4e0',
+  white:  '#eeeeff',
+  red:    '#e8002d',
+  redLo:  '#380010',
+  green:  '#00e676',
+  amber:  '#ffb300',
 } as const;
 
-const F  = "var(--font-barlow-condensed),'Barlow Condensed',sans-serif";
-const FM = "var(--font-titillium-web),'Titillium Web',sans-serif";
+const F  = "var(--font-barlow-condensed),'Barlow Condensed','Arial Narrow',sans-serif";
+const FM = "var(--font-titillium-web),'Titillium Web','Segoe UI',sans-serif";
 
 const PANEL: React.CSSProperties = {
   background: `linear-gradient(155deg,${C.iron} 0%,${C.steel} 100%)`,
   border: `1px solid ${C.bolt}`,
-  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.025),0 4px 28px rgba(0,0,0,0.75)`,
+  boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 4px 32px rgba(0,0,0,0.8)`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GAME STATE  (all random() lives inside buildGame — never at module level)
+// GAME STATE
 // ─────────────────────────────────────────────────────────────────────────────
 interface ToastData { name: string; category: string }
 
@@ -56,6 +56,7 @@ interface GS {
   time:       number;
   done:       boolean;
   toast:      ToastData | null;
+  totalTime:  number;
 }
 
 function buildGame(): GS {
@@ -64,8 +65,15 @@ function buildGame(): GS {
   return {
     categories, drivers, idx: 0,
     correct: new Set(), wrong: new Set(), assigned: new Map(),
-    streak: 0, best: 0, time: 10, done: false, toast: null,
+    streak: 0, best: 0, time: 10, done: false, toast: null, totalTime: 0,
   };
+}
+
+
+function formatTime(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -96,6 +104,7 @@ function Pill({ children, bg = C.red, fg = C.white, style }: {
       background: bg, color: fg, fontFamily: F, fontWeight: 900,
       fontSize: '0.75rem', letterSpacing: '0.18em', textTransform: 'uppercase',
       clipPath: 'polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)',
+      boxShadow: `0 0 12px ${bg}50`,
       ...style,
     }}>
       {children}
@@ -104,8 +113,42 @@ function Pill({ children, bg = C.red, fg = C.white, style }: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TIMER BAR (green → amber → red)
+// TIMER RING — circular SVG countdown replacing the old plain block
 // ─────────────────────────────────────────────────────────────────────────────
+function TimerRing({ t }: { t: number }) {
+  const r = 24, circ = 2 * Math.PI * r;
+  const color = t <= 3 ? C.red : t <= 6 ? C.amber : C.green;
+  return (
+    <div style={{
+      position: 'relative', width: 68, height: 68,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <svg width={68} height={68} style={{ position: 'absolute', transform: 'rotate(-90deg)' }}>
+        <circle cx={34} cy={34} r={r} fill="none" stroke={`${color}20`} strokeWidth={3} />
+        <circle
+          cx={34} cy={34} r={r} fill="none"
+          stroke={color} strokeWidth={3}
+          strokeDasharray={`${circ * (t / 10)} ${circ}`}
+          strokeLinecap="round"
+          style={{
+            transition: 'stroke-dasharray 1s linear, stroke 0.4s ease',
+            filter: `drop-shadow(0 0 5px ${color}90)`,
+          }}
+        />
+      </svg>
+      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', lineHeight: 1 }}>
+        <div style={{
+          fontFamily: F, fontWeight: 900, fontSize: '1.7rem',
+          color, transition: 'color 0.4s',
+          textShadow: `0 0 12px ${color}70`,
+        }}>{t}</div>
+        <div style={{ fontFamily: F, fontSize: '0.58rem', letterSpacing: '0.2em', color: `${color}70`, textTransform: 'uppercase' }}>SEC</div>
+      </div>
+    </div>
+  );
+}
+
+// Keep TimerBar for the bottom-of-card strip
 function TimerBar({ t }: { t: number }) {
   const pct   = (t / 10) * 100;
   const color = t <= 3 ? C.red : t <= 6 ? C.amber : C.green;
@@ -121,7 +164,7 @@ function TimerBar({ t }: { t: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WRONG TOAST — slides in/out, no alert()
+// WRONG TOAST
 // ─────────────────────────────────────────────────────────────────────────────
 function WrongToast({ toast }: { toast: ToastData | null }) {
   const [show, setShow] = useState(false);
@@ -147,15 +190,15 @@ function WrongToast({ toast }: { toast: ToastData | null }) {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '8px 14px',
-        background: `${C.redLo}f0`,
-        border: `1px solid ${C.red}35`,
+        background: `linear-gradient(90deg, ${C.redLo}f5, ${C.deep}f5)`,
+        border: `1px solid ${C.red}30`,
         borderLeft: `3px solid ${C.red}`,
       }}>
         <XCircle size={13} style={{ color: C.red, flexShrink: 0 }} />
         <span style={{ fontFamily: FM, fontSize: '0.95rem', fontWeight: 600, color: C.silver, letterSpacing: '0.04em' }}>
           <b style={{ color: C.white, fontFamily: F, fontWeight: 900 }}>{data?.name}</b>
           {' '}does not fit in{' '}
-          <span style={{ color: '#f0a090', fontStyle: 'italic' }}>{data?.category}</span>
+          <span style={{ color: '#ff9080', fontStyle: 'italic' }}>{data?.category}</span>
         </span>
       </div>
     </div>
@@ -163,7 +206,7 @@ function WrongToast({ toast }: { toast: ToastData | null }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STREAK FLASH — fixed toast in corner on 2+ streak
+// STREAK FLASH
 // ─────────────────────────────────────────────────────────────────────────────
 function StreakFlash({ streak }: { streak: number }) {
   const [visible, setVisible] = useState(false);
@@ -184,10 +227,10 @@ function StreakFlash({ streak }: { streak: number }) {
       position: 'fixed', top: 72, right: 22, zIndex: 200,
       display: 'flex', alignItems: 'center', gap: 8,
       padding: '9px 16px',
-      background: C.deep,
-      border: `1px solid ${C.amber}55`,
+      background: `linear-gradient(135deg, ${C.iron}, ${C.deep})`,
+      border: `1px solid ${C.amber}50`,
       borderLeft: `3px solid ${C.amber}`,
-      boxShadow: `0 6px 32px rgba(0,0,0,0.85)`,
+      boxShadow: `0 6px 32px rgba(0,0,0,0.9), 0 0 18px ${C.amber}25`,
       pointerEvents: 'none',
       transform: visible ? 'translateX(0)' : 'translateX(110%)',
       opacity: visible ? 1 : 0,
@@ -202,20 +245,23 @@ function StreakFlash({ streak }: { streak: number }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LOADING SKELETON (shown on server + before client hydration)
+// LOADING SKELETON
 // ─────────────────────────────────────────────────────────────────────────────
 function Skeleton() {
   return (
     <div style={{ minHeight: '100vh', background: C.black, padding: '26px 18px' }}>
       <style>{`
         @keyframes shimmer {
-          0%   { background-position: -400px 0 }
-          100% { background-position:  400px 0 }
+          0%   { background-position: -500px 0 }
+          100% { background-position:  500px 0 }
         }
-        .sk { background: linear-gradient(90deg,${C.iron} 25%,${C.plate} 50%,${C.iron} 75%);
-              background-size: 400px 100%; animation: shimmer 1.4s infinite; }
+        .sk {
+          background: linear-gradient(90deg,${C.iron} 25%,${C.plate} 50%,${C.iron} 75%);
+          background-size: 500px 100%;
+          animation: shimmer 1.5s infinite;
+        }
       `}</style>
-      <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1140, margin: '0 auto' }}>
         <div style={{ height: 3, background: C.redLo, marginBottom: 10 }} />
         <div className="sk" style={{ height: 56, marginBottom: 10, border: `1px solid ${C.bolt}` }} />
         <div className="sk" style={{ height: 162, marginBottom: 8, border: `1px solid ${C.bolt}` }} />
@@ -231,33 +277,50 @@ function Skeleton() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CATEGORY BG
+// CATEGORY HELPERS — icon + per-category accent colour
 // ─────────────────────────────────────────────────────────────────────────────
-function catBg(text: string): string {
+function catIcon(text: string): string {
   const t = text.toLowerCase();
-  if (t.includes('sprint wins'))         return '/categories/sprint.jpg';
-  if (t.includes('race wins'))           return '/categories/victory.jpg';
-  if (t.includes('pole positions'))      return '/categories/pole.jpg';
-  if (t.includes('podiums'))             return '/categories/podium.jpg';
-  if (t.includes('grand slams'))         return '/categories/grand-slam.jpg';
-  if (t.includes('race starts'))         return '/categories/starts.jpg';
-  if (t.includes('championship titles')) return '/categories/champion.jpg';
-  if (t.includes('fastest laps'))        return '/categories/fastest-lap.jpg';
-  if (t.includes('born in the'))         return '/categories/decade-generic.jpg';
-  if (t.includes('born in'))             return '/categories/decade-generic.jpg';
-  if (t.includes('driver from'))         return '/categories/generic.jpg';
-  if (t.includes('points scored'))       return '/categories/points.jpg';
-  if (t.includes('driver of the day'))   return '/categories/dotd.jpg';
-  if (t.includes('finished top'))        return '/categories/champion.jpg';
-  if (t.includes('laps completed'))      return '/categories/starts.jpg';
-  return '/categories/default-f1.jpg';
+  if (t.includes('championship titles')) return '🏆';
+  if (t.includes('race wins'))           return '🏁';
+  if (t.includes('sprint wins'))         return '⚡';
+  if (t.includes('pole positions'))      return '🎯';
+  if (t.includes('podiums'))             return '🥇';
+  if (t.includes('grand slams'))         return '💎';
+  if (t.includes('race starts'))         return '🔢';
+  if (t.includes('fastest laps'))        return '⏱';
+  if (t.includes('born in the'))         return '📅';
+  if (t.includes('born in'))             return '🌍';
+  if (t.includes('driver from'))         return '🌍';
+  if (t.includes('points scored'))       return '📊';
+  if (t.includes('driver of the day'))   return '⭐';
+  if (t.includes('finished top'))        return '🏅';
+  if (t.includes('laps completed'))      return '🔄';
+  return '🏎';
+}
+
+function catAccentColor(text: string): string {
+  const t = text.toLowerCase();
+  if (t.includes('championship'))  return C.amber;
+  if (t.includes('race wins'))     return C.red;
+  if (t.includes('sprint'))        return '#00bcd4';
+  if (t.includes('pole'))          return C.green;
+  if (t.includes('podiums'))       return C.amber;
+  if (t.includes('grand slams'))   return '#e040fb';
+  if (t.includes('fastest'))       return '#1e90ff';
+  if (t.includes('born'))          return '#78909c';
+  if (t.includes('driver from'))   return '#4caf50';
+  if (t.includes('points'))        return '#ff7043';
+  if (t.includes('driver of'))     return C.amber;
+  if (t.includes('laps'))          return '#26c6da';
+  return C.chrome;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RESULTS SCREEN
+// RESULTS SCREEN  — all original sections preserved, visuals polished
 // ─────────────────────────────────────────────────────────────────────────────
 function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
-  const { categories, correct, wrong, assigned, best } = gs;
+  const { categories, correct, wrong, assigned, best, totalTime } = gs;
   const score = correct.size;
   const total = categories.length;
   const pct   = Math.round((score / total) * 100);
@@ -279,13 +342,12 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
     { list: skippedList,  icon: <MinusCircle  size={12} style={{ color: C.dim   }} />, accent: C.dim,   label: `Skipped (${skippedList.length})` },
   ].filter(g => g.list.length > 0);
 
-  // Animate progress bar after mount
   const [barW, setBarW] = useState(0);
   useEffect(() => { const id = setTimeout(() => setBarW(pct), 80); return () => clearTimeout(id); }, [pct]);
 
   return (
     <div style={{
-      minHeight: '100vh', background: C.black,
+      minHeight: '100vh',
       backgroundImage: 'url(/background/f1-bg.jpg)',
       backgroundSize: 'cover', backgroundPosition: 'center',
       display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
@@ -294,7 +356,7 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
       <div style={{ width: '100%', maxWidth: 700 }}>
 
         {/* Accent bar */}
-        <div style={{ height: 4, background: C.red, boxShadow: `0 0 18px ${C.red}70`, borderRadius: '2px 2px 0 0' }} />
+        <div style={{ height: 4, background: C.red, boxShadow: `0 0 20px ${C.red}80`, borderRadius: '2px 2px 0 0' }} />
 
         <div style={{ ...PANEL, position: 'relative', padding: '28px 32px 32px' }}>
           <Rivets />
@@ -306,6 +368,7 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
                 background: C.red, padding: '3px 10px',
                 clipPath: 'polygon(7px 0%,100% 0%,calc(100% - 7px) 100%,0% 100%)',
                 fontFamily: F, fontWeight: 900, fontSize: '1.15rem', letterSpacing: '0.1em', color: C.white,
+                boxShadow: `0 0 14px ${C.red}55`,
               }}>F1</div>
               <h1 style={{ fontFamily: F, fontWeight: 900, fontSize: '1.8rem', letterSpacing: '0.1em', color: C.white, margin: 0 }}>
                 BINGO — RESULTS
@@ -319,11 +382,12 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
             borderLeft: `4px solid ${tier.color}`,
             padding: '18px 22px', marginBottom: 14,
             display: 'flex', alignItems: 'center', gap: 22,
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02)`,
           }}>
             <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 68 }}>
               <div style={{
                 fontFamily: F, fontWeight: 900, fontSize: '4.6rem', lineHeight: 1,
-                color: tier.color, textShadow: `0 0 26px ${tier.color}45`,
+                color: tier.color, textShadow: `0 0 30px ${tier.color}60`,
               }}>{score}</div>
               <div style={{ fontFamily: F, fontWeight: 700, fontSize: '1.02rem', color: C.chrome, letterSpacing: '0.1em' }}>/ {total}</div>
             </div>
@@ -332,20 +396,24 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
 
             <div style={{ flex: 1 }}>
               <Pill bg={tier.color} style={{ marginBottom: 8 }}>{tier.label}</Pill>
-              <p style={{ fontFamily: FM, fontSize: '1.1rem', color: C.silver, margin: '0 0 14px', lineHeight: 1.4 }}>
+              <p style={{ fontFamily: FM, fontSize: '1.05rem', color: C.silver, margin: '0 0 14px', lineHeight: 1.5 }}>
                 {tier.sub}
               </p>
-              <div style={{ background: C.bolt, height: 5, overflow: 'hidden', marginBottom: 4 }}>
+              <div style={{ background: C.bolt, height: 5, overflow: 'hidden', marginBottom: 4, borderRadius: 2 }}>
                 <div style={{
                   height: '100%', width: `${barW}%`,
                   background: `linear-gradient(90deg,${tier.color}70,${tier.color})`,
-                  boxShadow: `0 0 10px ${tier.color}55`,
+                  boxShadow: `0 0 10px ${tier.color}60`,
+                  borderRadius: 2,
                   transition: 'width 1.5s cubic-bezier(0.22,1,0.36,1)',
                 }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontFamily: F, fontSize: '0.75rem', letterSpacing: '0.2em', color: C.chrome }}>
                   {pct}% SUCCESS RATE
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: F, fontSize: '0.75rem', letterSpacing: '0.16em', color: C.chrome }}>
+                  ⏱ TIME: {formatTime(totalTime)}
                 </span>
                 {best >= 2 && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: F, fontSize: '0.75rem', letterSpacing: '0.16em', color: C.amber }}>
@@ -363,16 +431,23 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
               { label: 'Wrong',   val: wrongList.length,    color: C.red    },
               { label: 'Skipped', val: skippedList.length,  color: C.chrome },
             ].map(({ label, val, color }) => (
-              <div key={label} style={{ background: C.deep, border: `1px solid ${C.bolt}`, padding: '10px 14px', textAlign: 'center' }}>
-                <div style={{ fontFamily: F, fontWeight: 900, fontSize: '2rem', lineHeight: 1, color }}>{val}</div>
+              <div key={label} style={{ background: C.deep, border: `1px solid ${C.bolt}`, borderTop: `2px solid ${color}50`, padding: '10px 14px', textAlign: 'center' }}>
+                <div style={{ fontFamily: F, fontWeight: 900, fontSize: '2rem', lineHeight: 1, color, textShadow: `0 0 14px ${color}50` }}>{val}</div>
                 <div style={{ fontFamily: F, fontSize: '1.1rem', letterSpacing: '0.2em', color: C.chrome, marginTop: 3 }}>{label.toUpperCase()}</div>
               </div>
             ))}
+            {/* Total time — full width row */}
+            <div style={{ gridColumn: 'span 3', background: C.deep, border: `1px solid ${C.bolt}`, borderTop: `2px solid #1e90ff50`, padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+              <Clock size={16} style={{ color: '#1e90ff', opacity: 0.8 }} />
+              <span style={{ fontFamily: F, fontWeight: 900, fontSize: '2rem', lineHeight: 1, color: '#1e90ff', textShadow: '0 0 14px #1e90ff50' }}>{formatTime(totalTime)}</span>
+              <span style={{ fontFamily: F, fontSize: '1.1rem', letterSpacing: '0.2em', color: C.chrome }}>TOTAL TIME</span>
+            </div>
           </div>
 
-          {/* Team radio */}
+          {/* Team radio — original section, kept intact */}
           <div style={{
             background: C.deep, border: `1px solid ${C.bolt}`,
+            borderLeft: `3px solid ${C.dim}`,
             padding: '8px 14px', marginBottom: 18,
             fontFamily: FM, fontSize: '1.05rem', color: C.silver, lineHeight: 1.5,
           }}>
@@ -381,15 +456,15 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
             </div>
             {score === total ? (
               <>
-                <p style={{ margin: '0 0 2px' }}>„Guys… guys… is this Bingo confirmed?"</p>
-                <p style={{ margin: 0 }}>„Copy. <span style={{ color: C.green }}>Bingo confirmed.</span> Box, box for celebration!"</p>
+                <p style={{ margin: '0 0 2px' }}>„Guys… guys… is this Bingo confirmed?&quot;</p>
+                <p style={{ margin: 0 }}>„Copy. <span style={{ color: C.green }}>Bingo confirmed.</span> Box, box for celebration!&quot;</p>
               </>
             ) : score >= total * 0.8 ? (
-              <p style={{ margin: 0 }}>„Good session. <span style={{ color: C.amber }}>Almost there.</span> We'll debrief and come back stronger."</p>
+              <p style={{ margin: 0 }}>„Good session. <span style={{ color: C.amber }}>Almost there.</span> We&apos;ll debrief and come back stronger.&quot;</p>
             ) : (
               <>
-                <p style={{ margin: '0 0 2px' }}>„We had Bingo?"</p>
-                <p style={{ margin: 0 }}>„<span style={{ color: C.red }}>Negative.</span> Wrong strategy. Box, we need to talk."</p>
+                <p style={{ margin: '0 0 2px' }}>„We had Bingo?&quot;</p>
+                <p style={{ margin: 0 }}>„<span style={{ color: C.red }}>Negative.</span> Wrong strategy. Box, we need to talk.&quot;</p>
               </>
             )}
             <audio autoPlay>
@@ -397,24 +472,22 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
             </audio>
           </div>
 
-          {/* Category breakdown — grouped */}
+          {/* Category breakdown — grouped, original logic */}
           <div style={{ border: `1px solid ${C.bolt}`, overflow: 'hidden', marginBottom: 26 }}>
             {groups.map((g, gi) => (
               <div key={gi}>
-                {/* Group row */}
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '5px 12px',
-                  background: `${g.accent}0d`,
+                  background: `${g.accent}10`,
                   borderBottom: `1px solid ${C.bolt}`,
                   borderTop: gi > 0 ? `1px solid ${C.bolt}` : 'none',
                 }}>
                   {g.icon}
-                  <span style={{ fontFamily: F, fontWeight: 900, fontSize: '1.1rem', letterSpacing: '0.22em', color: `${g.accent}bb` }}>
+                  <span style={{ fontFamily: F, fontWeight: 900, fontSize: '1.1rem', letterSpacing: '0.22em', color: `${g.accent}cc` }}>
                     {g.label.toUpperCase()}
                   </span>
                 </div>
-                {/* Category rows */}
                 {g.list.map((cat, i) => {
                   const drv    = assigned.get(cat.id);
                   const isC    = correct.has(cat.id);
@@ -433,19 +506,19 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
                           : isW ? <XCircle size={13} style={{ color: C.red }} />
                           : <MinusCircle size={13} style={{ color: C.dim }} />}
                       </div>
-                      <div style={{ width: 34, height: 34, position: 'relative', overflow: 'hidden', border: `1px solid ${accent}55`, flexShrink: 0 }}>
+                      <div style={{ width: 34, height: 34, position: 'relative', overflow: 'hidden', border: `1px solid ${accent}55`, flexShrink: 0, borderRadius: 2 }}>
                         {drv
-                          ? <Image src={`/drivers/${drv.id}.jpg`} alt={drv.name} width={34} height={34} className="object-cover" style={{ display: 'block' }} />
+                          ? <Image src={`/drivers/${drv.id}.jpg`} alt={drv.name} width={34} height={34} style={{ objectFit: 'cover', display: 'block' }} />
                           : <div style={{ width: 34, height: 34, background: C.bolt }} />}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{
                           fontFamily: F, fontWeight: 700, fontSize: '0.98rem',
                           letterSpacing: '0.04em', textTransform: 'uppercase',
-                          color: isC ? C.green : isW ? '#f09080' : C.chrome,
+                          color: isC ? C.green : isW ? '#ff9080' : C.chrome,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{cat.text}</div>
-                        <div style={{ fontFamily: F, fontSize: '1.1rem', letterSpacing: '0.1em', color: `${accent}80`, marginTop: 1 }}>
+                        <div style={{ fontFamily: F, fontSize: '0.82rem', letterSpacing: '0.1em', color: `${accent}80`, marginTop: 1 }}>
                           {isC ? 'CORRECT' : isW ? 'WRONG' : 'UNSELECTED'}
                         </div>
                       </div>
@@ -475,21 +548,21 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
                 background: C.red, color: C.white, border: 'none',
                 padding: '13px 50px',
                 clipPath: 'polygon(12px 0%,100% 0%,calc(100% - 12px) 100%,0% 100%)',
-                cursor: 'pointer', boxShadow: `0 0 22px ${C.red}35`,
+                cursor: 'pointer', boxShadow: `0 0 22px ${C.red}40`,
                 transition: 'box-shadow 0.2s',
               }}
-              onMouseEnter={e => (e.currentTarget.style.boxShadow = `0 0 32px ${C.red}60`)}
-              onMouseLeave={e => (e.currentTarget.style.boxShadow = `0 0 22px ${C.red}35`)}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = `0 0 36px ${C.red}70`)}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = `0 0 22px ${C.red}40`)}
             >
               <RotateCcw size={14} /> Play again
             </button>
             {pct < 100 && (
-              <p style={{ fontFamily: FM, fontSize: '1.1rem', color: C.chrome, margin: 0, letterSpacing: '0.04em' }}>
+              <p style={{ fontFamily: FM, fontSize: '1rem', color: C.chrome, margin: 0, letterSpacing: '0.04em' }}>
                 Categories change every game — you can do better.
               </p>
             )}
             {pct === 100 && (
-              <p style={{ fontFamily: FM, fontSize: '1.1rem', color: `${C.green}90`, margin: 0 }}>
+              <p style={{ fontFamily: FM, fontSize: '1rem', color: `${C.green}90`, margin: 0 }}>
                 Perfect performance. Try again for a new set of categories.
               </p>
             )}
@@ -504,17 +577,11 @@ function Results({ gs, onRestart }: { gs: GS; onRestart: () => void }) {
 // MAIN COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
 export default function BingoGame() {
-  // ── HYDRATION FIX ─────────────────────────────────────────────────────────
-  // gs is null on server AND on first client render → both render <Skeleton />.
-  // After mount, useEffect calls buildGame() (which uses Math.random()) only
-  // on the client — no server/client mismatch possible.
   const [gs, setGs] = useState<GS | null>(null);
 
-  useEffect(() => {
-    setGs(buildGame());
-  }, []);
+  useEffect(() => { setGs(buildGame()); }, []);
 
-  // ── TIMER ─────────────────────────────────────────────────────────────────
+  // ── TIMER ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!gs || gs.done || gs.idx >= gs.drivers.length) return;
     if (gs.time <= 0) {
@@ -536,6 +603,13 @@ export default function BingoGame() {
     return () => clearTimeout(id);
   }, [gs?.toast]);
 
+  // ── TOTAL GAME TIMER ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!gs || gs.done) return;
+    const id = setInterval(() => setGs(prev => prev && !prev.done ? { ...prev, totalTime: prev.totalTime + 1 } : prev), 1000);
+    return () => clearInterval(id);
+  }, [gs?.done]);
+
   // ── ACTIONS ───────────────────────────────────────────────────────────────
   const handleSkip = useCallback(() => {
     setGs(prev => {
@@ -553,16 +627,16 @@ export default function BingoGame() {
       const category = prev.categories.find(c => c.id === catId);
       if (!driver || !category) return prev;
 
-      const hit        = category.matches(driver);
-      const newCorrect = hit ? new Set([...prev.correct, catId]) : prev.correct;
-      const newWrong   = hit ? prev.wrong : new Set([...prev.wrong, catId]);
-      const newAssigned= new Map(prev.assigned).set(catId, driver);
-      const streak     = hit ? prev.streak + 1 : 0;
-      const best       = Math.max(prev.best, streak);
-      const answered   = newCorrect.size + newWrong.size;
-      const allDone    = answered >= prev.categories.length;
-      const nextIdx    = allDone ? prev.idx : prev.idx + 1;
-      const done       = allDone || nextIdx >= prev.drivers.length;
+      const hit         = category.matches(driver);
+      const newCorrect  = hit ? new Set([...prev.correct, catId]) : prev.correct;
+      const newWrong    = hit ? prev.wrong : new Set([...prev.wrong, catId]);
+      const newAssigned = new Map(prev.assigned).set(catId, driver);
+      const streak      = hit ? prev.streak + 1 : 0;
+      const best        = Math.max(prev.best, streak);
+      const answered    = newCorrect.size + newWrong.size;
+      const allDone     = answered >= prev.categories.length;
+      const nextIdx     = allDone ? prev.idx : prev.idx + 1;
+      const done        = allDone || nextIdx >= prev.drivers.length;
 
       return {
         ...prev,
@@ -584,30 +658,30 @@ export default function BingoGame() {
   const answered  = gs.correct.size + gs.wrong.size;
   const remaining = gs.categories.length - answered;
   const tc        = gs.time <= 3;
-  const tCol      = tc ? C.red : gs.time <= 6 ? C.amber : C.silver;
 
   return (
     <div style={{
-      minHeight: '100vh', background: C.black,
+      minHeight: '100vh',
       backgroundImage: 'url(/background/f1-bg.jpg)',
       backgroundSize: 'cover', backgroundPosition: 'center',
-      padding: '26px 18px 18px',
+      padding: '20px 18px 18px',
     }}>
       <StreakFlash streak={gs.streak} />
 
-      <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+      <div style={{ maxWidth: 1140, margin: '0 auto' }}>
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'stretch', marginBottom: 10, gap: 10 }}>
 
           {/* Logo */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ height: 3, background: C.red, boxShadow: `0 0 12px ${C.red}60` }} />
+            <div style={{ height: 3, background: C.red, boxShadow: `0 0 14px ${C.red}70` }} />
             <div style={{ ...PANEL, padding: '8px 18px', display: 'flex', alignItems: 'center', gap: 11, flex: 1 }}>
               <div style={{
                 background: C.red, padding: '2px 9px',
                 clipPath: 'polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)',
                 fontFamily: F, fontWeight: 900, fontSize: '1.2rem', letterSpacing: '0.1em', color: C.white,
+                boxShadow: `0 0 14px ${C.red}55`,
               }}>F1</div>
               <h1 style={{ fontFamily: F, fontWeight: 900, fontSize: '2.2rem', letterSpacing: '0.14em', color: C.white, margin: 0 }}>
                 BINGO
@@ -620,7 +694,7 @@ export default function BingoGame() {
             {/* Answered */}
             <div style={{ ...PANEL, padding: '8px 16px', position: 'relative' }}>
               <Rivets />
-              <div style={{ fontFamily: F, fontSize: '1.1rem', letterSpacing: '0.22em', color: C.chrome, textTransform: 'uppercase', marginBottom: 1 }}>Answered</div>
+              <div style={{ fontFamily: F, fontSize: '0.7rem', letterSpacing: '0.22em', color: C.dim, textTransform: 'uppercase', marginBottom: 1 }}>Answered</div>
               <div style={{ fontFamily: F, fontWeight: 900, fontSize: '2rem', lineHeight: 1, letterSpacing: '0.06em' }}>
                 <span style={{ color: C.white }}>{answered}</span>
                 <span style={{ color: C.bolt, fontSize: '1.3rem' }}>/{gs.categories.length}</span>
@@ -629,16 +703,16 @@ export default function BingoGame() {
             {/* Remaining */}
             <div style={{ ...PANEL, padding: '8px 16px', position: 'relative' }}>
               <Rivets />
-              <div style={{ fontFamily: F, fontSize: '1.1rem', letterSpacing: '0.22em', color: C.chrome, textTransform: 'uppercase', marginBottom: 1 }}>Remaining</div>
+              <div style={{ fontFamily: F, fontSize: '0.7rem', letterSpacing: '0.22em', color: C.dim, textTransform: 'uppercase', marginBottom: 1 }}>Remaining</div>
               <div style={{ fontFamily: F, fontWeight: 900, fontSize: '2rem', lineHeight: 1, letterSpacing: '0.06em', color: remaining <= 3 ? C.amber : C.chrome }}>
                 {remaining}
               </div>
             </div>
-            {/* Streak (only visible if active) */}
+            {/* Streak */}
             {gs.streak >= 2 && (
               <div style={{ ...PANEL, padding: '8px 16px', position: 'relative', borderColor: `${C.amber}45` }}>
                 <Rivets />
-                <div style={{ fontFamily: F, fontSize: '1.1rem', letterSpacing: '0.22em', color: C.amber, textTransform: 'uppercase', marginBottom: 1 }}>Streak</div>
+                <div style={{ fontFamily: F, fontSize: '0.7rem', letterSpacing: '0.22em', color: C.amber, textTransform: 'uppercase', marginBottom: 1 }}>Streak</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: F, fontWeight: 900, fontSize: '2rem', lineHeight: 1, color: C.amber }}>
                   {gs.streak}<Flame size={15} />
                 </div>
@@ -652,11 +726,8 @@ export default function BingoGame() {
 
         {/* ── DRIVER CARD ─────────────────────────────────────────────────── */}
         {driver && (
-          <div style={{ ...PANEL, marginBottom: 8, position: 'relative', overflow: 'hidden', display: 'flex' }}>
+          <div style={{ ...PANEL, marginBottom: 8, position: 'relative', overflow: 'hidden', display: 'flex', borderTop: `3px solid ${C.red}` }}>
             <Rivets />
-
-            {/* Red left rail */}
-            <div style={{ width: 3, flexShrink: 0, background: C.red, boxShadow: `2px 0 12px ${C.red}50` }} />
 
             {/* Driver photo */}
             <div style={{ position: 'relative', width: 158, height: 158, flexShrink: 0 }}>
@@ -664,8 +735,7 @@ export default function BingoGame() {
                 src={`/drivers/${driver.id}.jpg`}
                 alt={driver.name}
                 fill
-                className="object-cover"
-                style={{ borderRight: `1px solid ${C.bolt}` }}
+                style={{ objectFit: 'cover', borderRight: `1px solid ${C.bolt}` }}
                 priority
                 sizes="158px"
               />
@@ -673,6 +743,11 @@ export default function BingoGame() {
               <div style={{
                 position: 'absolute', inset: 0, pointerEvents: 'none',
                 backgroundImage: 'repeating-linear-gradient(0deg,rgba(0,0,0,0.05) 0px,rgba(0,0,0,0.05) 1px,transparent 1px,transparent 3px)',
+              }} />
+              {/* Edge fade into card */}
+              <div style={{
+                position: 'absolute', inset: 0, pointerEvents: 'none',
+                background: `linear-gradient(to right, transparent 65%, ${C.iron})`,
               }} />
             </div>
 
@@ -683,9 +758,7 @@ export default function BingoGame() {
                 <h2 style={{ fontFamily: F, fontWeight: 900, fontSize: '2.9rem', letterSpacing: '0.02em', color: C.white, margin: 0, lineHeight: 1 }}>
                   {driver.name}
                 </h2>
-                <div style={{ fontFamily: FM, fontWeight: 400, fontSize: '1rem', letterSpacing: '0.14em', color: C.chrome, marginTop: 5, textTransform: 'uppercase' }}>
-                  {driver.country ?? ''}
-                </div>
+
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <button
@@ -697,41 +770,33 @@ export default function BingoGame() {
                     background: C.iron, border: `1px solid ${C.bolt}`, color: C.chrome,
                     cursor: 'pointer',
                     clipPath: 'polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%)',
-                    transition: 'color 0.15s, border-color 0.15s',
+                    transition: 'color 0.15s, border-color 0.15s, background 0.15s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.color = C.silver; e.currentTarget.style.borderColor = C.dim; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = C.chrome; e.currentTarget.style.borderColor = C.bolt; }}
+                  onMouseEnter={e => { e.currentTarget.style.color = C.white; e.currentTarget.style.borderColor = C.dim; e.currentTarget.style.background = C.plate; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = C.chrome; e.currentTarget.style.borderColor = C.bolt; e.currentTarget.style.background = C.iron; }}
                 >
                   <SkipForward size={10} /> SKIP
                 </button>
-                <span style={{ fontFamily: F, fontSize: '0.98rem', letterSpacing: '0.14em', color: C.bolt, textTransform: 'uppercase' }}>
+                <span style={{ fontFamily: F, fontSize: '0.98rem', letterSpacing: '0.14em', color: C.dim, textTransform: 'uppercase' }}>
                   Select a category
                 </span>
               </div>
             </div>
 
-            {/* Timer block */}
+            {/* Timer block — circular ring */}
             <div style={{
-              width: 88, flexShrink: 0,
+              width: 96, flexShrink: 0,
               background: tc
-                ? `repeating-linear-gradient(-45deg,${C.red} 0px,${C.red} 8px,${C.redLo} 8px,${C.redLo} 16px)`
+                ? `repeating-linear-gradient(-45deg,${C.red}20 0px,${C.red}20 8px,${C.deep} 8px,${C.deep} 16px)`
                 : C.deep,
               borderLeft: `1px solid ${C.bolt}`,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
               transition: 'background 0.5s',
             }}>
-              <Clock size={11} style={{ color: tCol, opacity: 0.5 }} />
-              <div style={{
-                fontFamily: F, fontWeight: 900, fontSize: '3.1rem', lineHeight: 1,
-                color: tCol, textShadow: `0 0 14px ${tCol}65`,
-                transition: 'color 0.4s',
-              }}>
-                {gs.time}
-              </div>
-              <div style={{ fontFamily: F, fontSize: '0.68rem', letterSpacing: '0.22em', color: tCol, opacity: 0.45, textTransform: 'uppercase' }}>SEC</div>
+              <TimerRing t={gs.time} />
             </div>
 
-            {/* Timer bar at bottom of card */}
+            {/* Timer bar at bottom */}
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
               <TimerBar t={gs.time} />
             </div>
@@ -743,7 +808,8 @@ export default function BingoGame() {
           <div style={{
             height: '100%',
             width: `${(answered / gs.categories.length) * 100}%`,
-            background: `linear-gradient(90deg,${C.red}70,${C.red})`,
+            background: `linear-gradient(90deg,${C.red}60,${C.red})`,
+            boxShadow: `0 0 8px ${C.red}50`,
             transition: 'width 0.4s ease',
           }} />
         </div>
@@ -751,8 +817,12 @@ export default function BingoGame() {
         {/* ── CATEGORY GRID ───────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 5 }}>
           {gs.categories.map(cat => {
-            const done = gs.correct.has(cat.id) || gs.wrong.has(cat.id);
-            const bg   = catBg(cat.text);
+            const done   = gs.correct.has(cat.id) || gs.wrong.has(cat.id);
+            const isC    = gs.correct.has(cat.id);
+            const isW    = gs.wrong.has(cat.id);
+            const accent = isC ? C.green : isW ? C.red : catAccentColor(cat.text);
+            const icon   = catIcon(cat.text);
+
             return (
               <button
                 key={cat.id}
@@ -761,46 +831,74 @@ export default function BingoGame() {
                 style={{
                   position: 'relative', aspectRatio: '1/1',
                   padding: 0,
-                  border: `1px solid ${done ? C.bolt + '30' : C.bolt}`,
+                  border: `1px solid ${done ? C.bolt + '40' : C.bolt}`,
+                  borderTop: `2px solid ${done ? (isC ? `${C.green}70` : `${C.red}50`) : `${accent}55`}`,
+                  background: isC
+                    ? `linear-gradient(145deg,${C.green}10,${C.iron})`
+                    : isW
+                    ? `linear-gradient(145deg,${C.red}08,${C.iron})`
+                    : `linear-gradient(145deg,${C.iron},${C.steel})`,
                   overflow: 'hidden',
                   cursor: done ? 'default' : 'pointer',
-                  opacity: done ? 0.25 : 1,
-                  backgroundImage: `url(${bg})`,
-                  backgroundSize: 'cover', backgroundPosition: 'center',
-                  transition: 'opacity 0.4s, transform 0.12s ease',
+                  opacity: done ? 0.38 : 1,
+                  transition: 'opacity 0.35s, transform 0.14s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.14s',
                 }}
-                onMouseEnter={e => { if (!done) (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.04)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+                onMouseEnter={e => { if (!done) { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-3px) scale(1.04)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px rgba(0,0,0,0.65), 0 0 0 1px ${accent}40`; } }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; (e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'; }}
               >
-                {/* Overlay */}
-                <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.73)' }} />
-                {/* CRT lines */}
+                {/* Subtle grid texture */}
                 <div style={{
-                  position: 'absolute', inset: 0, pointerEvents: 'none',
-                  backgroundImage: 'repeating-linear-gradient(0deg,rgba(0,0,0,0.04) 0px,rgba(0,0,0,0.04) 1px,transparent 1px,transparent 4px)',
+                  position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.025,
+                  backgroundImage: `repeating-linear-gradient(0deg,${C.white} 0,${C.white} 1px,transparent 1px,transparent 22px),
+                                    repeating-linear-gradient(90deg,${C.white} 0,${C.white} 1px,transparent 1px,transparent 22px)`,
                 }} />
-                {/* Top accent strip */}
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: C.bolt }} />
-                {/* Corner rivets */}
-                {([{top:3,left:3},{top:3,right:3},{bottom:3,left:3},{bottom:3,right:3}] as React.CSSProperties[]).map((pos, i) => (
-                  <span key={i} style={{ position:'absolute', width:4, height:4, borderRadius:'50%', background:C.bolt, opacity:0.5, ...pos }} />
-                ))}
-                {/* Label */}
+
+                {/* Per-category colour glow at top */}
+                {!done && (
+                  <div style={{
+                    position: 'absolute', inset: 0, pointerEvents: 'none',
+                    background: `radial-gradient(ellipse at 50% -10%, ${accent}18, transparent 60%)`,
+                  }} />
+                )}
+
+                {/* Done overlay */}
+                {done && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+                    {isC
+                      ? <CheckCircle2 size={30} style={{ color: C.green, opacity: 0.8, filter: `drop-shadow(0 0 8px ${C.green}70)` }} />
+                      : <XCircle     size={30} style={{ color: C.red,   opacity: 0.7, filter: `drop-shadow(0 0 8px ${C.red}60)` }} />
+                    }
+                  </div>
+                )}
+
+                {/* Content */}
                 <div style={{
                   position: 'relative', zIndex: 2,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  height: '100%', padding: '12px 7px',
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  height: '100%', padding: '10px 7px', gap: 5,
                 }}>
+                  <span style={{ fontSize: '1.35rem', lineHeight: 1, filter: done ? 'grayscale(1) opacity(0.35)' : 'none', transition: 'filter 0.3s' }}>
+                    {icon}
+                  </span>
                   <span style={{
-                    fontFamily: F, fontWeight: 800, fontSize: '1.02rem',
+                    fontFamily: F, fontWeight: 800, fontSize: '0.9rem',
                     letterSpacing: '0.04em', textTransform: 'uppercase',
-                    textAlign: 'center', lineHeight: 1.25,
-                    color: C.silver,
-                    textShadow: '0 1px 8px rgba(0,0,0,1)',
+                    textAlign: 'center', lineHeight: 1.2,
+                    color: done ? `${C.chrome}55` : C.silver,
+                    textShadow: done ? 'none' : '0 1px 6px rgba(0,0,0,0.95)',
                   }}>
                     {cat.text}
                   </span>
                 </div>
+
+                {/* Bottom accent strip */}
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 2,
+                  background: done
+                    ? (isC ? `${C.green}55` : `${C.red}38`)
+                    : `linear-gradient(90deg, transparent, ${accent}45, transparent)`,
+                }} />
               </button>
             );
           })}
