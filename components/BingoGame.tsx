@@ -322,7 +322,7 @@ function catAccentColor(text: string): string {
 // RESULTS SCREEN  — all original sections preserved, visuals polished
 // ─────────────────────────────────────────────────────────────────────────────
 function Results({ gs, onRestart, onDone }: { gs: GS; onRestart: () => void; onDone?: (score: number, totalTime: number, bestStreak: number) => void }) {
-  const { correct, best, totalTime } = gs;
+  const { categories, correct, wrong, assigned, best, totalTime } = gs;
   // Fire onDone once when component mounts (game just finished)
   const firedRef = useRef(false);
   useEffect(() => {
@@ -331,7 +331,6 @@ function Results({ gs, onRestart, onDone }: { gs: GS; onRestart: () => void; onD
       onDone(correct.size, totalTime, best);
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
-  const { categories, correct, wrong, assigned, best, totalTime } = gs;
   const score = correct.size;
   const total = categories.length;
   const pct   = Math.round((score / total) * 100);
