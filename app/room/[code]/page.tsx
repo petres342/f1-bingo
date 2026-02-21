@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase, RoomResult } from '@/lib/supabase';
 import BingoGame from '@/components/BingoGame';
@@ -731,22 +731,40 @@ export default function RoomPage() {
   }, [code]);
 
   // ── WATCH FOR GAME START (for non-host waiting players) ───────────────────
-  const watchStartRef = useRef(false);
-  const startWatcher = useCallback(() => {
-    if (watchStartRef.current) return;
-    watchStartRef.current = true;
+  // Runs as a proper useEffect so the subscription is always active while waiting
+  useEffect(() => {
+    if (phase !== 'waiting') return;
 
+    // Also poll every 2s as a fallback in case realtime is slow to connect
+    async function checkStarted() {
+      const { data } = await supabase
+        .from('rooms')
+        .select('started')
+        .eq('code', code)
+        .single();
+      if (data?.started) setPhase('playing');
+    }
+    checkStarted();
+    const pollId = setInterval(checkStarted, 2000);
+
+    // Realtime subscription
     const ch = supabase.channel(`start-watch-${code}`)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'rooms',
         filter: `code=eq.${code}`,
       }, payload => {
-        if (payload.new?.started) setPhase('playing');
+        if (payload.new?.started) {
+          clearInterval(pollId);
+          setPhase('playing');
+        }
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(ch); };
-  }, [code]);
+    return () => {
+      clearInterval(pollId);
+      supabase.removeChannel(ch);
+    };
+  }, [phase, code]);
 
   // ── LOAD + SUBSCRIBE RESULTS ───────────────────────────────────────────────
   useEffect(() => {
@@ -796,7 +814,6 @@ export default function RoomPage() {
     } else {
       setIsHost(false);
       setPhase('waiting');
-      startWatcher();
     }
   }
 
