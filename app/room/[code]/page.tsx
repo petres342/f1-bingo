@@ -863,7 +863,7 @@ export default function RoomPage() {
   );
 
   if (phase === 'playing') return (
-    <BingoGame roomSeed={seed} onDone={handleGameDone} />
+    <BingoGame onDone={handleGameDone} />
   );
 
   // phase === 'done'
