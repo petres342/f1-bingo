@@ -36,8 +36,15 @@ export default function RootLayout({
       <body
         className={`${bebasNeue.variable} ${cormorantGaramond.variable} ${barlowCondensed.variable} antialiased`}
       >
-        <a
+      <style>{`
+        .back-hub-btn:hover {
+          color: rgba(255,255,255,0.9) !important;
+          border-color: rgba(255,255,255,0.25) !important;
+        }
+      `}</style>
+      <a
           href="https://jocular-custard-46000b.netlify.app"
+          className="back-hub-btn"
           style={{
             position: 'fixed',
             top: '16px',
@@ -58,14 +65,6 @@ export default function RootLayout({
             textDecoration: 'none',
             backdropFilter: 'blur(8px)',
             transition: 'all 0.18s',
-          }}
-          onMouseEnter={e => {
-            (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.9)';
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.25)';
-          }}
-          onMouseLeave={e => {
-            (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.4)';
-            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.1)';
           }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
