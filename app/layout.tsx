@@ -36,6 +36,43 @@ export default function RootLayout({
       <body
         className={`${bebasNeue.variable} ${cormorantGaramond.variable} ${barlowCondensed.variable} antialiased`}
       >
+        <a
+          href="https://jocular-custard-46000b.netlify.app"
+          style={{
+            position: 'fixed',
+            top: '16px',
+            left: '18px',
+            zIndex: 9999,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontFamily: 'var(--font-mono, "Barlow Condensed", sans-serif)',
+            fontWeight: 700,
+            fontSize: '0.72rem',
+            letterSpacing: '0.2em',
+            textTransform: 'uppercase',
+            color: 'rgba(255,255,255,0.4)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '7px 14px',
+            background: 'rgba(5,5,7,0.7)',
+            textDecoration: 'none',
+            backdropFilter: 'blur(8px)',
+            transition: 'all 0.18s',
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.9)';
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.25)';
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.4)';
+            (e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,0.1)';
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          All Games
+        </a>
         {children}
       </body>
     </html>

@@ -132,7 +132,7 @@ export default function HomePage() {
 
       {/* ── BACK TO HUB ──────────────────────────────────────────────── */}
       <a
-        href="https://majestic-klepon-6a326d.netlify.app"
+        href="https://jocular-custard-46000b.netlify.app"
         className="back-hub"
         style={{
           position: 'fixed', top: 16, left: 18, zIndex: 100,
